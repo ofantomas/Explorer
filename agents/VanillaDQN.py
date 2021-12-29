@@ -202,7 +202,10 @@ class VanillaDQN(BaseAgent):
 
   def learn(self):
     mode = 'Train'
-    batch = self.replay.sample(['state', 'action', 'reward', 'next_state', 'mask'], self.cfg['batch_size'])
+    batch = self.replay.sample(['state', 'action', 'next_state', 'reward', 'mask'], self.cfg['batch_size'])
+    print(batch.state.shape)
+    print(batch.action.shape)
+    print(batch.next_state.shape)
     q, q_target = self.compute_q(batch), self.compute_q_target(batch)
     # Compute loss
     loss = self.loss(q, q_target)
@@ -224,6 +227,7 @@ class VanillaDQN(BaseAgent):
   def compute_q(self, batch):
     # Convert actions to long so they can be used as indexes
     action = batch.action.long().unsqueeze(1)
+    print(self.Q_net[self.update_Q_net_index](batch.state).shape)
     q = self.Q_net[self.update_Q_net_index](batch.state).gather(1, action).squeeze()
     return q
 
@@ -262,9 +266,13 @@ class VanillaDQN(BaseAgent):
         return self.env[mode].observation_space.n
     else: # Box, MultiBinary
       if hasattr(self.env[mode], 'env'):
-        return int(np.prod(self.env[mode].env.observation_space.shape))
+        # tmp
+        # return int(np.prod(self.env[mode].env.observation_space.shape))
+        return self.env[mode].env.observation_space.shape[::-1]
       else:
-        return int(np.prod(self.env[mode].observation_space.shape))
+        #tmp
+        # return int(np.prod(self.env[mode].observation_space.shape))
+        return self.env[mode].observation_space.shape[::-1]
 
   def set_net_mode(self, mode):
     if mode == 'Test':

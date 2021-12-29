@@ -8,19 +8,19 @@ from gym.wrappers.time_limit import TimeLimit
 cv2.ocl.setUseOpenCL(False)
 
 
-def make_atari(env, max_episode_steps):
+def make_atari(env, max_episode_steps, no_timelimit):
   # assert 'NoFrameskip' in env.spec.id
   print('set time limit:', max_episode_steps)
   env = NoopResetEnv(env, noop_max=30)
   env = MaxAndSkipEnv(env, skip=4)
-  if max_episode_steps > 0:
+  if max_episode_steps > 0 and not no_timelimit:
     env = TimeLimit(env, max_episode_steps=max_episode_steps)
   return env
 
-def make_atari_ram(env, max_episode_steps, scale=True, episode_life=True):
+def make_atari_ram(env, max_episode_steps, no_timelimit, scale=True, episode_life=True):
   env = NoopResetEnv(env, noop_max=30)
   env = MaxAndSkipEnv(env, skip=4)
-  if max_episode_steps > 0:
+  if max_episode_steps > 0 and not no_timelimit:
     env = TimeLimit(env, max_episode_steps=max_episode_steps)
   if scale:
     env = ScaledFloatFrame(env)
@@ -28,8 +28,8 @@ def make_atari_ram(env, max_episode_steps, scale=True, episode_life=True):
     env = EpisodicLifeEnv(env)
   return env
 
-def make_minatar(env, max_episode_steps, scale=False):
-  if max_episode_steps > 0:
+def make_minatar(env, max_episode_steps, no_timelimit, scale=False):
+  if max_episode_steps > 0 and not no_timelimit:
     env = TimeLimit(env, max_episode_steps=max_episode_steps)
   if scale:
     env = ScaledFloatFrame(env)

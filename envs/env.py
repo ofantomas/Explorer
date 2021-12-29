@@ -12,18 +12,18 @@ from gym.wrappers.time_limit import TimeLimit
 from envs.wrapper import *
 
 
-def make_env(env_name, max_episode_steps, episode_life=True):
+def make_env(env_name, max_episode_steps, episode_life=True, no_timelimit=True):
   env = gym.make(env_name)
   env_group_title = get_env_group_title(env)
   # print(env_group_title, env_name)
   if env_group_title == 'gym_minatar':
-    env = make_minatar(env, max_episode_steps, scale=False)
+    env = make_minatar(env, max_episode_steps, no_timelimit, scale=False)
     if len(env.observation_space.shape) == 3:
       env = TransposeImage(env)
   elif env_group_title == 'atari' and '-ram' in env_name:
-    make_atari_ram(env, max_episode_steps, scale=True)
+    make_atari_ram(env, max_episode_steps, no_timelimit, scale=True)
   elif env_group_title == 'atari':
-    env = make_atari(env, max_episode_steps)
+    env = make_atari(env, max_episode_steps, no_timelimit)
     env = ReturnWrapper(env)
     env = wrap_deepmind(env,
                         episode_life=episode_life,
@@ -34,7 +34,7 @@ def make_env(env_name, max_episode_steps, episode_life=True):
       env = TransposeImage(env)
     env = FrameStack(env, 4)
   elif env_group_title in ['classic_control', 'box2d', 'gym_pygame', 'gym_exploration', 'pybullet', 'mujoco', 'robotics']:
-    if max_episode_steps > 0: # Set max episode steps
+    if max_episode_steps > 0 and not no_timelimit: # Set max episode steps
       env = TimeLimit(env.unwrapped, max_episode_steps)
   return env
 
