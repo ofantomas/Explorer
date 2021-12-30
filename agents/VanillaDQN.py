@@ -203,9 +203,6 @@ class VanillaDQN(BaseAgent):
   def learn(self):
     mode = 'Train'
     batch = self.replay.sample(['state', 'action', 'next_state', 'reward', 'mask'], self.cfg['batch_size'])
-    print(batch.state.shape)
-    print(batch.action.shape)
-    print(batch.next_state.shape)
     q, q_target = self.compute_q(batch), self.compute_q_target(batch)
     # Compute loss
     loss = self.loss(q, q_target)
@@ -226,8 +223,9 @@ class VanillaDQN(BaseAgent):
   
   def compute_q(self, batch):
     # Convert actions to long so they can be used as indexes
-    action = batch.action.long().unsqueeze(1)
-    print(self.Q_net[self.update_Q_net_index](batch.state).shape)
+    # tmp remove unsqueeze
+    action = batch.action.long()# .unsqueeze(1)
+
     q = self.Q_net[self.update_Q_net_index](batch.state).gather(1, action).squeeze()
     return q
 

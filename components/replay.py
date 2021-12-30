@@ -154,24 +154,21 @@ class BiasControlReplayBuffer(object):
         Entry = namedtuple('Entry', keys)
         return Entry(*list(data))
 
-    def gather_returns(self, gamma, alpha, n_per_episode):
+    def gather_returns(self, n_per_episode):
         selected_idx = []
         for ep_lst in self.last_episodes:
             selected_idx.append(np.random.choice(ep_lst, replace=True, size=n_per_episode))
         selected_idx = np.concatenate(selected_idx)
-        return self.get_returns_by_idx(selected_idx, gamma, alpha)
+        return self.get_returns_by_idx(selected_idx)
 
-    def gather_returns_uniform(self, gamma, alpha, n_per_episode):
+    def gather_returns_uniform(self, n_per_episode):
         all_idx = np.concatenate(self.last_episodes)
         selected_idx = np.random.choice(all_idx, replace=True, size=n_per_episode * len(self.last_episodes))
-        return self.get_returns_by_idx(selected_idx, gamma, alpha)
+        return self.get_returns_by_idx(selected_idx)
 
-    def get_returns_by_idx(self, selected_idx, gamma, alpha):
-        h_target = - self.action.shape[1]
+    def get_returns_by_idx(self, selected_idx):
         result_states = self.state[selected_idx]
         result_actions = self.action[selected_idx]
-        ns = self.ep_length[selected_idx]
-        entropy_сorrection = alpha * h_target * gamma * (1 - np.power(gamma, ns - 1)) / (1 - gamma)
-        result_returns = self.returns[selected_idx] + entropy_сorrection
+        result_returns = self.returns[selected_idx]
         return (torch.tensor(arr, dtype=torch.float32, device=self.device) for arr in
                 [result_states, result_actions, result_returns])

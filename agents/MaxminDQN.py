@@ -61,11 +61,13 @@ class MaxminDQN(VanillaDQN):
           self.update_d()
         if self.step_count > 10000 and self.step_count % self.q_g_eval_interval == 0:
           res = self.eval_thresholds(self.replay, self.q_g_n_per_episode)
-          self.logger.add_scalars('Q_G_stats', res)
+          for k, v in res.items():
+            self.logger.add_scalar(k, v, self.step_count)
         self.step_count += 1
       # Update state
       self.state[mode] = self.next_state[mode]
       if self.done[mode] or self.episode_step_count[mode] >= self.max_episode_length:
+        # print("Episode end!", self.done[mode], self.episode_step_count[mode] >= self.max_episode_length)
         break
     # End of one episode
     self.save_episode_result(mode)
@@ -93,9 +95,9 @@ class MaxminDQN(VanillaDQN):
   def compute_q_target(self, batch):
     with torch.no_grad():
       q_min, _ = torch.min(torch.stack([self.Q_net_target[i](batch.next_state) for i in range(self.nets_to_use)], 1), 1)
-      q_next = q_min.max(1)[0]
+      q_next = q_min.max(1, keepdim=True)[0]
       q_target = batch.reward + self.discount * q_next * batch.mask
-    return q_target
+    return q_target.squeeze()
   
   def get_action_selection_q_values(self, state):
     q_min, _ = torch.min(torch.stack([self.Q_net[i](state) for i in range(self.nets_to_use)], 1), 1)
@@ -109,14 +111,14 @@ class MaxminDQN(VanillaDQN):
       self.nets_to_use = min(self.nets_to_use + 1, self.k)
 
   def eval_thresholds_by_type(self, replay_buffer, n_per_episode, sampling_scheme):
-    alpha = torch.exp(self.log_alpha)
     if sampling_scheme == 'uniform':
-      states, actions, returns = replay_buffer.gather_returns_uniform(self.discount, float(alpha), n_per_episode)
+      states, actions, returns = replay_buffer.gather_returns_uniform(n_per_episode)
     elif sampling_scheme == 'episodes':
-      states, actions, returns = replay_buffer.gather_returns(self.discount, float(alpha), n_per_episode)
+      states, actions, returns = replay_buffer.gather_returns(n_per_episode)
     else:
       raise Exception("No such sampling scheme")
-    q = self.get_action_selection_q_values(states).gather(1, actions)
+    q_min, _ = torch.min(torch.stack([self.Q_net_target[i](states) for i in range(self.nets_to_use)], 1), 1)
+    q = q_min.gather(1, actions.long()).squeeze()
     res = {f'LastReplay_{sampling_scheme}/Q_value': q.mean().__float__(),
            f'LastReplay_{sampling_scheme}/Returns': returns.mean().__float__()}
     return res
@@ -130,5 +132,5 @@ class MaxminDQN(VanillaDQN):
     last_Q_G_delta = res[f'LastReplay_{self.sampling_scheme}/Q_value'] - \
               res[f'LastReplay_{self.sampling_scheme}/Returns']
     res[f'LastQ_G_delta_{self.sampling_scheme}'] = last_Q_G_delta
-    self.Q_G_delta = self.Q_G_delta * self.delta_gamma + last_Q_G_delta * (1 - self.delta_gamma)
+    self.Q_G_delta = self.Q_G_delta * self.update_d_gamma + last_Q_G_delta * (1 - self.update_d_gamma)
     return res
