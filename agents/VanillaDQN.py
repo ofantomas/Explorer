@@ -203,17 +203,20 @@ class VanillaDQN(BaseAgent):
   def learn(self):
     mode = 'Train'
     batch = self.replay.sample(['state', 'action', 'next_state', 'reward', 'mask'], self.cfg['batch_size'])
-    q, q_target = self.compute_q(batch), self.compute_q_target(batch)
-    # Compute loss
-    loss = self.loss(q, q_target)
-    # Take an optimization step
-    self.optimizer[self.update_Q_net_index].zero_grad()
-    loss.backward()
-    if self.gradient_clip > 0:
-      nn.utils.clip_grad_norm_(self.Q_net[self.update_Q_net_index].parameters(), self.gradient_clip)
-    self.optimizer[self.update_Q_net_index].step()
+    total_loss = 0
+    for update_Q_net_index in self.update_Q_net_indices:
+      q, q_target = self.compute_q(batch, update_Q_net_index), self.compute_q_target(batch)
+      # Compute loss
+      loss = self.loss(q, q_target)
+      # Take an optimization step
+      self.optimizer[update_Q_net_index].zero_grad()
+      loss.backward()
+      if self.gradient_clip > 0:
+        nn.utils.clip_grad_norm_(self.Q_net[update_Q_net_index].parameters(), self.gradient_clip)
+      self.optimizer[update_Q_net_index].step()
+      total_loss += loss.item()
     if self.show_tb:
-      self.logger.add_scalar(f'Loss', loss.item(), self.step_count)
+      self.logger.add_scalar(f'Loss', total_loss / len(self.update_Q_net_indices), self.step_count)
 
   def compute_q_target(self, batch):
     with torch.no_grad():
@@ -221,12 +224,12 @@ class VanillaDQN(BaseAgent):
       q_target = batch.reward + self.discount * q_next * batch.mask
     return q_target
   
-  def compute_q(self, batch):
+  def compute_q(self, batch, update_Q_net_index):
     # Convert actions to long so they can be used as indexes
     # tmp remove unsqueeze
     action = batch.action.long()# .unsqueeze(1)
 
-    q = self.Q_net[self.update_Q_net_index](batch.state).gather(1, action).squeeze()
+    q = self.Q_net[update_Q_net_index](batch.state).gather(1, action).squeeze()
     return q
 
   def save_experience(self):

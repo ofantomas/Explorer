@@ -82,8 +82,12 @@ class MaxminDQN(VanillaDQN):
                     self.reward[mode], self.done[mode], ep_end)
 
   def learn(self):
-    # Choose a Q_net to udpate
-    self.update_Q_net_index = np.random.choice(list(range(self.k)))
+    # Choose a Q_net from active networks to update
+    active_update_index = np.random.choice(list(range(self.nets_to_use)))
+    # Choose Q netwroks from inactive networks to match the update rate
+    inactive_update_indices = self.nets_to_use + np.argwhere(np.random.uniform(0, 1, self.k - self.nets_to_use) < (1 / self.nets_to_use))
+    # Compose a list of indices to update
+    self.update_Q_net_indices = [active_update_index] + inactive_update_indices.squeeze(1).tolist()
     super().learn()
     # Update target network
     if (self.step_count // self.cfg['network_update_frequency']) % self.cfg['target_network_update_frequency'] == 0:
