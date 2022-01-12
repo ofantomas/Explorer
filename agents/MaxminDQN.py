@@ -64,6 +64,7 @@ class MaxminDQN(VanillaDQN):
           res = self.eval_thresholds(self.replay, self.q_g_n_per_episode)
           step_metrics.update(res)
           step_metrics['Total_timesteps'] = self.step_count
+          step_metrics[f'{mode}_Average_Return'] = self.rolling_score
           self.txt_logger.log(step_metrics)
         # Update Q_G_delta
         if self.step_count > 10000 and self.step_count % self.q_g_eval_interval == 0:
