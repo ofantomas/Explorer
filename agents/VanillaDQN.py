@@ -215,8 +215,10 @@ class VanillaDQN(BaseAgent):
         nn.utils.clip_grad_norm_(self.Q_net[update_Q_net_index].parameters(), self.gradient_clip)
       self.optimizer[update_Q_net_index].step()
       total_loss += loss.item()
+    total_loss /= len(self.update_Q_net_indices)
     if self.show_tb:
-      self.logger.add_scalar(f'Loss', total_loss / len(self.update_Q_net_indices), self.step_count)
+      self.logger.add_scalar(f'Loss', total_loss, self.step_count)
+    return {'Loss': total_loss}
 
   def compute_q_target(self, batch):
     with torch.no_grad():

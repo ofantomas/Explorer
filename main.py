@@ -20,6 +20,7 @@ def main(argv):
   cfg.setdefault('network_update_frequency', 1)
   cfg['env'].setdefault('max_episode_steps', -1)
   cfg.setdefault('show_tb', False)
+  cfg.setdefault('txt_log_freq', 1000)
   cfg.setdefault('render', False)
   cfg.setdefault('gradient_clip', -1)
   cfg.setdefault('hidden_act', 'ReLU')

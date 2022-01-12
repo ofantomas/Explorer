@@ -4,7 +4,6 @@ from agents.VanillaDQN import *
 class MaxminDQN(VanillaDQN):
   '''
   Implementation of Maxmin DQN with target network and replay buffer
-
   We can update all Q_nets for every update. However, this makes training really slow.
   Instead, we randomly choose one to update.
   '''
@@ -56,9 +55,17 @@ class MaxminDQN(VanillaDQN):
         self.save_experience(ep_end)
         # Update policy
         if self.time_to_learn():
-          self.learn()
+          step_metrics = self.learn()
+        # Update number of Q networks used
         if self.step_count % self.update_d_iterval == 0:
           self.update_d()
+        # Log metrics
+        if self.step_count > 10000 and self.step_count % self.txt_log_freq == 0:
+          res = self.eval_thresholds(self.replay, self.q_g_n_per_episode)
+          step_metrics.update(res)
+          step_metrics['Total_timesteps'] = self.step_count
+          self.txt_logger.log(step_metrics)
+        # Update Q_G_delta
         if self.step_count > 10000 and self.step_count % self.q_g_eval_interval == 0:
           res = self.eval_thresholds(self.replay, self.q_g_n_per_episode)
           for k, v in res.items():
@@ -71,6 +78,8 @@ class MaxminDQN(VanillaDQN):
         break
     # End of one episode
     self.save_episode_result(mode)
+    # Update evaluation statistics
+    self.txt_logger.update_evaluation_statistics(self.episode_step_count[mode], self.episode_return[mode])
     # Reset environment
     self.reset_game(mode)
     if mode == 'Train':
@@ -88,13 +97,17 @@ class MaxminDQN(VanillaDQN):
     inactive_update_indices = self.nets_to_use + np.argwhere(np.random.uniform(0, 1, self.k - self.nets_to_use) < (1 / self.nets_to_use))
     # Compose a list of indices to update
     self.update_Q_net_indices = [active_update_index] + inactive_update_indices.squeeze(1).tolist()
-    super().learn()
+    step_metrics = super().learn()
     # Update target network
     if (self.step_count // self.cfg['network_update_frequency']) % self.cfg['target_network_update_frequency'] == 0:
       for i in range(self.k):
         self.Q_net_target[i].load_state_dict(self.Q_net[i].state_dict())
     if self.show_tb:
-      self.logger.add_scalar(f'NumNets', self.nets_to_use, self.step_count)
+      self.logger.add_scalar('nets/NumUpdatedNets', len(self.update_Q_net_indices), self.step_count)
+      self.logger.add_scalar(f'nets/NumNets', self.nets_to_use, self.step_count)
+    step_metrics['nets/NumUpdatedNets'] = len(self.update_Q_net_indices)
+    step_metrics['nets/NumNets'] = self.nets_to_use
+    return step_metrics
   
   def compute_q_target(self, batch):
     with torch.no_grad():
