@@ -85,7 +85,7 @@ class VanillaDQN(BaseAgent):
       else:
         feature_net = Conv2d_Atari(in_channels=4, feature_dim=layer_dims[0])
     elif input_type == 'feature':
-      layer_dims = [self.state_size] + self.cfg['hidden_layers'] + [self.action_size]
+      layer_dims = [self.state_size[0]] + self.cfg['hidden_layers'] + [self.action_size]
       feature_net = nn.Identity()
     # Set value network
     assert self.action_type == 'DISCRETE', f'{self.agent_name} only supports discrete action spaces.'
