@@ -10,6 +10,7 @@ def main(argv):
   parser = argparse.ArgumentParser(description="Config file")
   parser.add_argument('--config_file', type=str, default='./configs/catcher.json', help='Configuration file for the chosen model')
   parser.add_argument('--config_idx', type=int, default=1, help='Configuration index')
+  parser.add_argument('--device', type=str, default='cuda')
   parser.add_argument('--slurm_dir', type=str, default='', help='slurm tempory directory')
   args = parser.parse_args()
   
@@ -17,6 +18,9 @@ def main(argv):
   cfg = sweeper.generate_config_for_idx(args.config_idx)
   
   # Set config dict default value
+
+  # Set device explicitly
+  cfg['device'] = args.device
   cfg.setdefault('network_update_frequency', 1)
   cfg['env'].setdefault('max_episode_steps', -1)
   cfg.setdefault('show_tb', False)
