@@ -34,8 +34,9 @@
   "eta": [
     {
       "init_d": [2],
-      "update_d_interval": [10000],
-      "update_d_gamma": [0.999],
+      "min_num_nets": [2],
+      "update_d_interval": [100000],
+      "update_d_gamma": [0.9995],
       "Q_G_eval_interval": [5],
       "Q_G_n_per_episode": [20],
       "Q_G_n_episodes": [200],

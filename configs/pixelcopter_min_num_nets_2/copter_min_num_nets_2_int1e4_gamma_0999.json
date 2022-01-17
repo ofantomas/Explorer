@@ -34,6 +34,7 @@
   "eta": [
     {
       "init_d": [2],
+      "min_num_nets": [2],
       "update_d_interval": [10000],
       "update_d_gamma": [0.999],
       "Q_G_eval_interval": [5],
