@@ -47,7 +47,7 @@
   "display_interval": [1000],
   "rolling_score_window": [{"Train": [100], "Test": [10]}],
   "discount": [0.99],
-  "seed": [10, 20, 30],
+  "seed": [10, 20, 30, 40, 50],
   "show_tb": [true],
   "gradient_clip": [-1],
   "target_network_update_frequency": [1000],

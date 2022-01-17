@@ -34,6 +34,7 @@
   "eta": [
     {
       "init_d": [2],
+      "min_num_nets": [2],
       "update_d_interval": [10000],
       "update_d_gamma": [0.999],
       "Q_G_eval_interval": [5],
@@ -46,7 +47,7 @@
   "display_interval": [100],
   "rolling_score_window": [{"Train": [100], "Test": [10]}],
   "discount": [0.99],
-  "seed": [10, 20, 30],
+  "seed": [10, 20, 30, 40, 50],
   "show_tb": [true],
   "gradient_clip": [5],
   "target_network_update_frequency": [200],

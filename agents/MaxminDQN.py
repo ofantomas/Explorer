@@ -11,6 +11,7 @@ class MaxminDQN(VanillaDQN):
     super().__init__(cfg)
     self.k = cfg['agent']['target_networks_num'] # number of target networks
     self.nets_to_use = cfg['eta']['init_d']
+    self.min_num_nets_to_use = cfg['eta']['min_num_nets']
     self.update_d_iterval = cfg['eta']['update_d_interval']
     self.update_d_gamma = cfg['eta']['update_d_gamma']
     self.q_g_eval_interval = cfg['eta']['Q_G_eval_interval']
@@ -124,7 +125,7 @@ class MaxminDQN(VanillaDQN):
 
   def update_d(self):
     if self.Q_G_delta < 0:
-      self.nets_to_use = max(self.nets_to_use - 1, 1)
+      self.nets_to_use = max(self.nets_to_use - 1, self.min_num_nets_to_use)
     if self.Q_G_delta > 0:
       self.nets_to_use = min(self.nets_to_use + 1, self.k)
 
