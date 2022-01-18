@@ -20,7 +20,8 @@ class MaxminDQN(VanillaDQN):
     self.Q_G_delta = 0
     # tmp action size
     self.replay = BiasControlReplayBuffer(action_dim=1, state_dim=self.state_size, device=self.device, max_size=int(cfg['memory_size']),
-                                          gamma=cfg['discount'], n_episodes_to_store=cfg['eta']['Q_G_n_episodes'])
+                                          gamma=cfg['discount'], n_episodes_to_store=cfg['eta']['Q_G_n_episodes'],
+                                          q_g_rollout_length=cfg['eta']['Q_G_rollout_length'])
     # Remove TimeLimit from env
     self.max_episode_length = cfg['env']['max_episode_steps']
     self.env = {
@@ -57,9 +58,6 @@ class MaxminDQN(VanillaDQN):
         # Update policy
         if self.time_to_learn():
           step_metrics = self.learn()
-        # Update number of Q networks used
-        if self.step_count % self.update_d_iterval == 0:
-          self.update_d()
         # Log metrics
         if self.step_count > 10000 and self.step_count % self.txt_log_freq == 0:
           res = self.eval_thresholds(self.replay, self.q_g_n_per_episode)
@@ -68,15 +66,10 @@ class MaxminDQN(VanillaDQN):
           step_metrics[f'{mode}_Average_Return'] = self.rolling_score
           self.txt_logger.log(step_metrics)
         # Update Q_G_delta
-        if self.step_count > 10000 and self.step_count % self.q_g_eval_interval == 0:
-          res = self.eval_thresholds(self.replay, self.q_g_n_per_episode)
-          for k, v in res.items():
-            self.logger.add_scalar(k, v, self.step_count)
         self.step_count += 1
       # Update state
       self.state[mode] = self.next_state[mode]
       if self.done[mode] or self.episode_step_count[mode] >= self.max_episode_length:
-        # print("Episode end!", self.done[mode], self.episode_step_count[mode] >= self.max_episode_length)
         break
     # End of one episode
     self.save_episode_result(mode)
@@ -104,11 +97,14 @@ class MaxminDQN(VanillaDQN):
     if (self.step_count // self.cfg['network_update_frequency']) % self.cfg['target_network_update_frequency'] == 0:
       for i in range(self.k):
         self.Q_net_target[i].load_state_dict(self.Q_net[i].state_dict())
-    if self.show_tb:
-      self.logger.add_scalar('nets/NumUpdatedNets', len(self.update_Q_net_indices), self.step_count)
-      self.logger.add_scalar(f'nets/NumNets', self.nets_to_use, self.step_count)
     step_metrics['nets/NumUpdatedNets'] = len(self.update_Q_net_indices)
     step_metrics['nets/NumNets'] = self.nets_to_use
+    # Update Q_G_delta
+    if self.step_count > 10000 and self.step_count % self.q_g_eval_interval == 0:
+      self.eval_thresholds(self.replay, self.q_g_n_per_episode)
+    # Update Number of Q networks
+    if self.step_count > 10000 and self.step_count % self.update_d_iterval == 0:
+      self.update_d()
     return step_metrics
   
   def compute_q_target(self, batch):
@@ -131,15 +127,18 @@ class MaxminDQN(VanillaDQN):
 
   def eval_thresholds_by_type(self, replay_buffer, n_per_episode, sampling_scheme):
     if sampling_scheme == 'uniform':
-      states, actions, returns = replay_buffer.gather_returns_uniform(n_per_episode)
+      states, actions, returns, bs_states, bs_multiplier = replay_buffer.gather_returns_uniform(n_per_episode)
     elif sampling_scheme == 'episodes':
-      states, actions, returns = replay_buffer.gather_returns(n_per_episode)
+      states, actions, returns, bs_states, bs_multiplier= replay_buffer.gather_returns(n_per_episode)
     else:
       raise Exception("No such sampling scheme")
+    tail_q_min, _ = torch.min(torch.stack([self.Q_net_target[i](bs_states) for i in range(self.nets_to_use)], 1), 1)
+    tail_q, _ = torch.max(tail_q_min, 1) # Select Q values with respect to optimal policy Q*
+    tail_q = tail_q * bs_multiplier * np.power(replay_buffer.gamma, replay_buffer.q_g_rollout_length)
     q_min, _ = torch.min(torch.stack([self.Q_net_target[i](states) for i in range(self.nets_to_use)], 1), 1)
     q = q_min.gather(1, actions.long()).squeeze()
     res = {f'LastReplay_{sampling_scheme}/Q_value': q.mean().__float__(),
-           f'LastReplay_{sampling_scheme}/Returns': returns.mean().__float__()}
+           f'LastReplay_{sampling_scheme}/Returns': (returns + tail_q).mean().__float__()}
     return res
   
   def eval_thresholds(self, replay_buffer, n_per_episode):
@@ -150,6 +149,5 @@ class MaxminDQN(VanillaDQN):
     res.update(res_episodes)
     last_Q_G_delta = res[f'LastReplay_{self.sampling_scheme}/Q_value'] - \
               res[f'LastReplay_{self.sampling_scheme}/Returns']
-    res[f'LastQ_G_delta_{self.sampling_scheme}'] = last_Q_G_delta
     self.Q_G_delta = self.Q_G_delta * self.update_d_gamma + last_Q_G_delta * (1 - self.update_d_gamma)
     return res

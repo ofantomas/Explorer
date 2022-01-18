@@ -216,8 +216,6 @@ class VanillaDQN(BaseAgent):
       self.optimizer[update_Q_net_index].step()
       total_loss += loss.item()
     total_loss /= len(self.update_Q_net_indices)
-    if self.show_tb:
-      self.logger.add_scalar(f'Loss', total_loss, self.step_count)
     return {'Loss': total_loss}
 
   def compute_q_target(self, batch):

@@ -102,16 +102,18 @@ class FiniteReplay(object):
 
 
 class BiasControlReplayBuffer(object):
-    def __init__(self, state_dim, action_dim, device, max_size=int(1e6), gamma=0.99, n_episodes_to_store=50):
+    def __init__(self, state_dim, action_dim, device, max_size=int(1e6), gamma=0.99, n_episodes_to_store=50, q_g_rollout_length=None):
         self.device = device
         self.max_size = max_size
         self.ptr = 0
         self.size = 0
         self.gamma = gamma
         self.n_episodes_to_store = n_episodes_to_store
+        self.q_g_rollout_length = q_g_rollout_length
 
-        self.transition_names = ('state', 'action', 'next_state', 'reward', 'mask', 'ep_end', 'returns', 'ep_length')
-        sizes = (state_dim, [action_dim], state_dim, [1], [1], [1], [1], [1])
+        self.transition_names = ('state', 'action', 'next_state', 'reward', 'mask',
+                                 'ep_end', 'returns', 'ep_length', 'bs_multiplier')
+        sizes = (state_dim, [action_dim], state_dim, [1], [1], [1], [1], [1], [1])
         for name, size in zip(self.transition_names, sizes):
             setattr(self, name, np.empty((max_size, *size)))
 
@@ -126,28 +128,37 @@ class BiasControlReplayBuffer(object):
         self.size = min(self.size + 1, self.max_size)
 
         if ep_end:
-            SKIP_N_BEFORE_TIMELIMIT = 500
-            res_idx = []
-            running_return = 0
-            was_timelimit = self.mask[(self.ptr - 1) % self.max_size, 0] > 0.5
-            for t in range(self.size):
-                idx = (self.ptr - 1 - t) % self.max_size
-                if t > 0 and (self.ep_end[idx, 0] > 0.5):
-                    break
-                running_return = self.reward[idx] + self.gamma * running_return
-                self.returns[idx] = running_return
-                self.ep_length[idx] = t + 1
-                if (was_timelimit and t > SKIP_N_BEFORE_TIMELIMIT) or not was_timelimit:
-                    res_idx.append(idx)
-            if len(res_idx) > 5:
-                self.last_episodes.append(np.array(res_idx, dtype='int32'))
-                if len(self.last_episodes) > self.n_episodes_to_store:
-                    self.last_episodes.popleft()
+          res_idx = []
+          running_return = 0
+          running_tail_return = 0
+          was_timelimit = self.mask[(self.ptr - 1) % self.max_size, 0] > 0.5
+          for t in range(self.size):
+            idx = (self.ptr - 1 - t) % self.max_size
+            if t > 0 and (self.ep_end[idx, 0] > 0.5):
+              break
+            running_return = self.reward[idx] + self.gamma * running_return
+            if t >= self.q_g_rollout_length:
+              running_tail_return = self.reward[(idx + self.q_g_rollout_length) % self.max_size] + self.gamma * running_tail_return
+            self.returns[idx] = running_return - np.power(self.gamma, self.q_g_rollout_length) * running_tail_return
+            self.ep_length[idx] = t + 1
+
+            is_enough_rollout = t + 1 > self.q_g_rollout_length
+            if (was_timelimit and t > is_enough_rollout) or not was_timelimit:
+              res_idx.append(idx)
+              if is_enough_rollout:
+                self.bs_multiplier[idx] = 1.0
+              else:
+                self.bs_multiplier[idx] = 0.0
+
+          if len(res_idx) > 5:
+              self.last_episodes.append(np.array(res_idx, dtype='int32'))
+              if len(self.last_episodes) > self.n_episodes_to_store:
+                  self.last_episodes.popleft()
 
     def sample(self, keys=None, batch_size=256):
         ind = np.random.randint(0, self.size, size=batch_size)
         if keys is None:
-          names = self.transition_names[:-2]
+          names = self.transition_names[:-3]
         else:
           names = keys
         data = (torch.FloatTensor(getattr(self, name)[ind]).to(self.device) for name in names)
@@ -170,5 +181,7 @@ class BiasControlReplayBuffer(object):
         result_states = self.state[selected_idx]
         result_actions = self.action[selected_idx]
         result_returns = self.returns[selected_idx]
+        result_bs_multiplier = self.bs_multiplier[selected_idx]
+        result_bs_states = self.state[(selected_idx + self.q_g_rollout_length) % self.max_size]
         return (torch.tensor(arr, dtype=torch.float32, device=self.device) for arr in
-                [result_states, result_actions, result_returns])
+                [result_states, result_actions, result_returns, result_bs_states, result_bs_multiplier])
