@@ -34,13 +34,13 @@
   "eta": [
     {
       "init_d": [2],
-      "min_num_nets": [1],
+      "min_num_nets": [2],
       "update_d_interval": [50000],
       "update_d_gamma": [0.999],
       "Q_G_eval_interval": [10],
       "Q_G_n_per_episode": [20],
       "Q_G_n_episodes": [200],
-      "Q_G_rollout_length": [50],
+      "Q_G_rollout_length": [10, 50, 100, 200],
       "sampling_scheme": ["uniform"]
     }
   ],

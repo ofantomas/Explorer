@@ -28,19 +28,19 @@
   "optimizer": [
     {
       "name": ["RMSprop"],
-      "kwargs": [{"lr": [3e-4]}]
+      "kwargs": [{"lr": [1e-3, 3e-4, 1e-4, 3e-5, 1e-5]}]
     }
   ],
   "eta": [
     {
       "init_d": [2],
-      "min_num_nets": [1],
+      "min_num_nets": [2],
       "update_d_interval": [50000],
       "update_d_gamma": [0.999],
       "Q_G_eval_interval": [10],
       "Q_G_n_per_episode": [20],
       "Q_G_n_episodes": [200],
-      "Q_G_rollout_length": [200],
+      "Q_G_rollout_length": [50],
       "sampling_scheme": ["uniform"]
     }
   ],
@@ -48,7 +48,7 @@
   "display_interval": [100],
   "rolling_score_window": [{"Train": [100], "Test": [10]}],
   "discount": [0.99],
-  "seed": [10, 20, 30, 40, 50],
+  "seed": [10, 20, 30, 40],
   "show_tb": [true],
   "gradient_clip": [5],
   "target_network_update_frequency": [200],
