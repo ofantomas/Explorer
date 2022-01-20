@@ -9,8 +9,13 @@ class MaxminDQN(VanillaDQN):
   '''
   def __init__(self, cfg):
     super().__init__(cfg)
-    self.k = cfg['agent']['target_networks_num'] # number of target networks
-    self.nets_to_use = cfg['eta']['init_d']
+    self.k = cfg['agent']['total_networks_num'] # number of target networks
+    self.update_nets_num = cfg['agent']['update_networks_num']
+    self.adaptive = cfg['agent']['adaptive']
+    if self.adaptive:
+      self.nets_to_use = cfg['eta']['init_d']
+    else:
+      self.nets_to_use = cfg['agent']['networks_num']
     self.min_num_nets_to_use = cfg['eta']['min_num_nets']
     self.update_d_iterval = cfg['eta']['update_d_interval']
     self.update_d_gamma = cfg['eta']['update_d_gamma']
@@ -86,12 +91,14 @@ class MaxminDQN(VanillaDQN):
                     self.reward[mode], self.done[mode], ep_end)
 
   def learn(self):
+    # Choose update_nets_num to update
+    self.update_Q_net_indices = np.random.choice(self.k, self.update_nets_num, replace=False)
     # Choose a Q_net from active networks to update
-    active_update_index = np.random.choice(list(range(self.nets_to_use)))
+    #active_update_index = np.random.choice(list(range(self.nets_to_use)))
     # Choose Q netwroks from inactive networks to match the update rate
-    inactive_update_indices = self.nets_to_use + np.argwhere(np.random.uniform(0, 1, self.k - self.nets_to_use) < (1 / self.nets_to_use))
+    #inactive_update_indices = self.nets_to_use + np.argwhere(np.random.uniform(0, 1, self.k - self.nets_to_use) < (1 / self.nets_to_use))
     # Compose a list of indices to update
-    self.update_Q_net_indices = [active_update_index] + inactive_update_indices.squeeze(1).tolist()
+    #self.update_Q_net_indices = [active_update_index] + inactive_update_indices.squeeze(1).tolist()
     step_metrics = super().learn()
     # Update target network
     if (self.step_count // self.cfg['network_update_frequency']) % self.cfg['target_network_update_frequency'] == 0:
@@ -99,23 +106,26 @@ class MaxminDQN(VanillaDQN):
         self.Q_net_target[i].load_state_dict(self.Q_net[i].state_dict())
     step_metrics['nets/NumUpdatedNets'] = len(self.update_Q_net_indices)
     step_metrics['nets/NumNets'] = self.nets_to_use
-    # Update Q_G_delta
-    if self.step_count > 10000 and self.step_count % self.q_g_eval_interval == 0:
-      self.eval_thresholds(self.replay, self.q_g_n_per_episode)
-    # Update Number of Q networks
-    if self.step_count > 10000 and self.step_count % self.update_d_iterval == 0:
-      self.update_d()
+    if self.adaptive:
+      # Update Q_G_delta
+      if self.step_count > 10000 and self.step_count % self.q_g_eval_interval == 0:
+        self.eval_thresholds(self.replay, self.q_g_n_per_episode)
+      # Update Number of Q networks
+      if self.step_count > 10000 and self.step_count % self.update_d_iterval == 0:
+        self.update_d()
     return step_metrics
   
   def compute_q_target(self, batch):
     with torch.no_grad():
-      q_min, _ = torch.min(torch.stack([self.Q_net_target[i](batch.next_state) for i in range(self.nets_to_use)], 1), 1)
+      nets_indices = np.random.choice(self.k, self.nets_to_use, replace=False)
+      q_min, _ = torch.min(torch.stack([self.Q_net_target[i](batch.next_state) for i in nets_indices], 1), 1)
       q_next = q_min.max(1, keepdim=True)[0]
       q_target = batch.reward + self.discount * q_next * batch.mask
     return q_target.squeeze()
   
   def get_action_selection_q_values(self, state):
-    q_min, _ = torch.min(torch.stack([self.Q_net[i](state) for i in range(self.nets_to_use)], 1), 1)
+    nets_indices = np.random.choice(self.k, self.nets_to_use, replace=False)
+    q_min, _ = torch.min(torch.stack([self.Q_net[i](state) for i in nets_indices], 1), 1)
     q_min = to_numpy(q_min).flatten()
     return q_min
 
@@ -132,11 +142,14 @@ class MaxminDQN(VanillaDQN):
       states, actions, returns, bs_states, bs_multiplier= replay_buffer.gather_returns(n_per_episode)
     else:
       raise Exception("No such sampling scheme")
-    tail_q_min, _ = torch.min(torch.stack([self.Q_net_target[i](bs_states) for i in range(self.nets_to_use)], 1), 1)
-    tail_q, _ = torch.max(tail_q_min, 1) # Select Q values with respect to optimal policy Q*
-    tail_q = tail_q * bs_multiplier * np.power(replay_buffer.gamma, replay_buffer.q_g_rollout_length)
-    q_min, _ = torch.min(torch.stack([self.Q_net_target[i](states) for i in range(self.nets_to_use)], 1), 1)
-    q = q_min.gather(1, actions.long()).squeeze()
+    with torch.no_grad():
+      tail_nets_indices = np.random.choice(self.k, self.nets_to_use, replace=False)
+      tail_q_min, _ = torch.min(torch.stack([self.Q_net_target[i](bs_states) for i in tail_nets_indices], 1), 1)
+      tail_q, _ = torch.max(tail_q_min, 1) # Select Q values with respect to optimal policy Q*
+      tail_q = tail_q * bs_multiplier * np.power(replay_buffer.gamma, replay_buffer.q_g_rollout_length)
+      nets_indices = np.random.choice(self.k, self.nets_to_use, replace=False)
+      q_min, _ = torch.min(torch.stack([self.Q_net[i](states) for i in nets_indices], 1), 1)
+      q = q_min.gather(1, actions.long()).squeeze()
     res = {f'LastReplay_{sampling_scheme}/Q_value': q.mean().__float__(),
            f'LastReplay_{sampling_scheme}/Returns': (returns + tail_q).mean().__float__()}
     return res
