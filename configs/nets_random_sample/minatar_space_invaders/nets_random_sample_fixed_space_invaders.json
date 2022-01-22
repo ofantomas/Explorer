@@ -11,7 +11,7 @@
       "name": ["MaxminDQN"],
       "total_networks_num": [8],
       "update_networks_num": [2],
-      "networks_num": [2, 4, 6, 8],
+      "networks_num": [1, 2, 4, 6, 8],
       "adaptive": [false]
     }
   ],
