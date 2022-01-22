@@ -1,7 +1,7 @@
 {
   "env": [
     {
-      "name": ["Breakout-MinAtar-v0"],
+      "name": ["Seaquest-MinAtar-v0"],
       "max_episode_steps": [10000],
       "input_type": ["pixel"]
     }
@@ -11,8 +11,8 @@
       "name": ["MaxminDQN"],
       "total_networks_num": [8],
       "update_networks_num": [2],
-      "networks_num": [-1],
-      "adaptive": [true]
+      "networks_num": [1],
+      "adaptive": [false]
     }
   ],
   "train_steps": [5e6],

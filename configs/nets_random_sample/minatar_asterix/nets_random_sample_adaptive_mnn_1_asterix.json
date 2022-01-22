@@ -1,7 +1,7 @@
 {
   "env": [
     {
-      "name": ["Breakout-MinAtar-v0"],
+      "name": ["Asterix-MinAtar-v0"],
       "max_episode_steps": [10000],
       "input_type": ["pixel"]
     }
@@ -38,7 +38,7 @@
   "eta": [
     {
       "init_d": [2],
-      "min_num_nets": [2],
+      "min_num_nets": [1],
       "update_d_interval": [50000],
       "update_d_gamma": [0.999],
       "Q_G_eval_interval": [10],
