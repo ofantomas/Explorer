@@ -52,17 +52,19 @@ class Experiment(object):
     self.agent.logger.info(f'Memory usage: {rss_memory_usage():.2f} MB')
     self.agent.logger.info(f'Time elapsed: {(self.end_time-self.start_time)/60:.2f} minutes')
 
-  def eval_bias(self, checkpoint_path):
-    checkpoint_list = glob.glob("{self.cfg['logs_dir']}/iter*")
+  def eval_bias(self, checkpoint_path=None):
+    if checkpoint_path is None:
+      checkpoint_path = self.cfg['logs_dir']
+    checkpoint_list = glob.glob(f"{checkpoint_path}/iter*")
     for checkpoint in checkpoint_list:
       self.load_model(checkpoint)
-      self.agent.run_eval_bias_episodes(num_episodes)
+      self.agent.run_eval_bias_episodes(num_episodes=self.cfg['eta']['Q_G_n_episodes'])
   
   def save_model(self):
     self.agent.save_model(self.model_path)
   
-  def load_model(self):
-    self.agent.load_model(self.model_path)
+  def load_model(self, model_path):
+    self.agent.load_model(model_path)
 
   def save_config(self):
     cfg_json = json.dumps(self.cfg, indent=2)
