@@ -71,7 +71,9 @@ class MaxminDQN(VanillaDQN):
           res = self.eval_thresholds(self.replay, self.q_g_n_per_episode)
           step_metrics.update(res)
           step_metrics['Total_timesteps'] = self.step_count + 1
-          step_metrics[f'{mode}_Average_Return'] = self.rolling_score
+          step_metrics['Train_Average_Return'] = self.rolling_score['Train']
+          self.eval_policy()
+          step_metrics['Evaluation_returns'] = self.rolling_score['Test']
           self.txt_logger.log(step_metrics)
         if self.save_checkpoints and (self.step_count + 1) % self.checkpoint_freq == 0:
           trainer_save_name = f'{self.logs_dir}/iter_{self.step_count + 1}'
@@ -85,7 +87,8 @@ class MaxminDQN(VanillaDQN):
     # End of one episode
     self.save_episode_result(mode)
     # Update evaluation statistics
-    self.txt_logger.update_evaluation_statistics(self.episode_step_count[mode], self.episode_return[mode])
+    if mode == 'Train':
+      self.txt_logger.update_evaluation_statistics(self.episode_step_count[mode], self.episode_return[mode])
     # Reset environment
     self.reset_game(mode)
     if mode == 'Train':

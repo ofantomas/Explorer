@@ -73,7 +73,7 @@ class VanillaDQN(BaseAgent):
     # self.replay = getattr(components.replay, cfg['memory_type'])(cfg['memory_size'], self.cfg['batch_size'], self.device)
     self.replay = FiniteReplay(cfg['memory_size'], keys=['state', 'action', 'next_state', 'reward', 'mask'])
     # Set log dict
-    for key in ['state', 'next_state', 'action', 'reward', 'done', 'episode_return', 'episode_step_count']:
+    for key in ['state', 'next_state', 'action', 'reward', 'done', 'episode_return', 'episode_step_count', 'rolling_score']:
       setattr(self, key, {'Train': None, 'Test': None})
 
   def createNN(self, input_type):
@@ -150,20 +150,26 @@ class VanillaDQN(BaseAgent):
     if mode == 'Train':
       self.episode_count += 1
 
+  def eval_policy(self, render=False, eval_episodes=10):
+    mode = 'Test'
+    self.set_net_mode(mode)
+    for i in range(eval_episodes):
+      self.run_episode(mode, render)
+
   def save_episode_result(self, mode):
     self.episode_return_list[mode].append(self.episode_return[mode])
-    self.rolling_score = np.mean(self.episode_return_list[mode][-1 * self.rolling_score_window[mode]:])
+    self.rolling_score[mode] = np.mean(self.episode_return_list[mode][-1 * self.rolling_score_window[mode]:])
     result_dict = {'Env': self.env_name,
                    'Agent': self.agent_name,
                    'Episode': self.episode_count, 
                    'Step': self.step_count, 
                    'Return': self.episode_return[mode],
-                   'Average Return': self.rolling_score}
+                   'Average Return': self.rolling_score[mode]}
     self.result[mode].append(result_dict)
     if self.show_tb:
       self.logger.add_scalar(f'{mode}_Return', self.episode_return[mode], self.step_count)
-      self.logger.add_scalar(f'{mode}_Average_Return', self.rolling_score, self.step_count)
-    if mode == 'Test' or self.episode_count % self.display_interval == 0 or self.step_count >= self.train_steps:
+      self.logger.add_scalar(f'{mode}_Average_Return', self.rolling_score[mode], self.step_count)
+    if self.episode_count % self.display_interval == 0 or self.step_count >= self.train_steps:
       # Save result to files
       result = pd.DataFrame(self.result[mode])
       result['Env'] = result['Env'].astype('category')
@@ -172,7 +178,7 @@ class VanillaDQN(BaseAgent):
       # Show log
       speed = self.step_count / (time.time() - self.start_time)
       eta = (self.train_steps - self.step_count) / speed / 60 if speed>0 else -1
-      self.logger.info(f'<{self.config_idx}> [{mode}] Episode {self.episode_count}, Step {self.step_count}: Average Return({self.rolling_score_window[mode]})={self.rolling_score:.2f}, Return={self.episode_return[mode]:.2f}, Speed={speed:.2f} (steps/s), ETA={eta:.2f} (mins)')
+      self.logger.info(f'<{self.config_idx}> [{mode}] Episode {self.episode_count}, Step {self.step_count}: Average Return({self.rolling_score_window[mode]})={self.rolling_score[mode]:.2f}, Return={self.episode_return[mode]:.2f}, Speed={speed:.2f} (steps/s), ETA={eta:.2f} (mins)')
 
   def get_action(self, mode='Train'):
     '''
