@@ -9,6 +9,9 @@ class MaxminDQN(VanillaDQN):
   '''
   def __init__(self, cfg):
     super().__init__(cfg)
+    self.save_checkpoints = cfg["save_checkpoints"]
+    self.checkpoint_freq = cfg["checkpoint_freq"]
+    self.logs_dir = cfg['logs_dir']
     self.k = cfg['agent']['total_networks_num'] # number of target networks
     self.update_nets_num = cfg['agent']['update_networks_num']
     self.adaptive = cfg['agent']['adaptive']
@@ -64,12 +67,15 @@ class MaxminDQN(VanillaDQN):
         if self.time_to_learn():
           step_metrics = self.learn()
         # Log metrics
-        if self.step_count > 10000 and self.step_count % self.txt_log_freq == 0:
+        if (self.step_count + 1) > 10000 and (self.step_count + 1)% self.txt_log_freq == 0:
           res = self.eval_thresholds(self.replay, self.q_g_n_per_episode)
           step_metrics.update(res)
-          step_metrics['Total_timesteps'] = self.step_count
+          step_metrics['Total_timesteps'] = self.step_count + 1
           step_metrics[f'{mode}_Average_Return'] = self.rolling_score
           self.txt_logger.log(step_metrics)
+        if self.save_checkpoints and (self.step_count + 1) % self.checkpoint_freq == 0:
+          trainer_save_name = f'{self.logs_dir}/iter_{self.step_count + 1}'
+          self.save_model(trainer_save_name)
         # Update Q_G_delta
         self.step_count += 1
       # Update state

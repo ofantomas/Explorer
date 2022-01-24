@@ -123,6 +123,12 @@ class VanillaDQN(BaseAgent):
       # Run for one episode
       self.run_episode(mode, render)
 
+  def run_eval_bias_episodes(self, num_episodes, render=False):
+    mode = 'Test'
+    self.reset_game('Test')
+    for i in range(num_episodes):
+      self.run_episode(mode, render)
+
   def run_episode(self, mode, render):
     while not self.done[mode]:
       self.action[mode] = self.get_action(mode)

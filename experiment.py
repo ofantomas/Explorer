@@ -1,4 +1,5 @@
 import os
+import glob
 import sys
 import copy
 import time
@@ -50,6 +51,12 @@ class Experiment(object):
     self.end_time = time.time()
     self.agent.logger.info(f'Memory usage: {rss_memory_usage():.2f} MB')
     self.agent.logger.info(f'Time elapsed: {(self.end_time-self.start_time)/60:.2f} minutes')
+
+  def eval_bias(self, checkpoint_path):
+    checkpoint_list = glob.glob("{self.cfg['logs_dir']}/iter*")
+    for checkpoint in checkpoint_list:
+      self.load_model(checkpoint)
+      self.agent.run_eval_bias_episodes(num_episodes)
   
   def save_model(self):
     self.agent.save_model(self.model_path)

@@ -12,6 +12,8 @@ def main(argv):
   parser.add_argument('--config_idx', type=int, default=1, help='Configuration index')
   parser.add_argument('--device', type=str, default='cuda')
   parser.add_argument('--slurm_dir', type=str, default='', help='slurm tempory directory')
+  parser.add_argument('--eval_bias', type=bool, default=False, help='Estimate true bias from saved checkpoints')
+  parser.add_argument('--checkpoints_path', type=str, default='logs', help='Path to checkpoints')
   args = parser.parse_args()
   
   sweeper = Sweeper(args.config_file)
@@ -24,6 +26,8 @@ def main(argv):
   cfg.setdefault('network_update_frequency', 1)
   cfg['env'].setdefault('max_episode_steps', -1)
   cfg['eta'].setdefault('min_num_nets', 1)
+  cfg.setdefault('save_checkpoints', False)
+  cfg.setdefault('checkpoint_freq', 100000)
   cfg.setdefault('show_tb', False)
   cfg.setdefault('txt_log_freq', 1000)
   cfg.setdefault('render', False)
@@ -46,7 +50,10 @@ def main(argv):
   cfg['cfg_path'] = cfg['logs_dir'] + 'config.json'
 
   exp = Experiment(cfg)
-  exp.run()
+  if args.eval_bias:
+    exp.eval_bias(args.checkpoints_path)
+  else:
+    exp.run()
 
 if __name__=='__main__':
   main(sys.argv)
