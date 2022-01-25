@@ -12,8 +12,6 @@ def main(argv):
   parser.add_argument('--config_idx', type=int, default=1, help='Configuration index')
   parser.add_argument('--device', type=str, default='cuda')
   parser.add_argument('--slurm_dir', type=str, default='', help='slurm tempory directory')
-  parser.add_argument('--eval_bias', type=bool, default=False, help='Estimate true bias from saved checkpoints')
-  parser.add_argument('--checkpoints_path', type=str, default='logs', help='Path to checkpoints')
   args = parser.parse_args()
   
   sweeper = Sweeper(args.config_file)
@@ -50,10 +48,7 @@ def main(argv):
   cfg['cfg_path'] = cfg['logs_dir'] + 'config.json'
 
   exp = Experiment(cfg)
-  if args.eval_bias:
-    exp.eval_bias(args.checkpoints_path)
-  else:
-    exp.run()
+  exp.run()
 
 if __name__=='__main__':
   main(sys.argv)

@@ -78,7 +78,6 @@ class MaxminDQN(VanillaDQN):
         if self.save_checkpoints and (self.step_count + 1) % self.checkpoint_freq == 0:
           trainer_save_name = f'{self.logs_dir}/iter_{self.step_count + 1}'
           self.save_model(trainer_save_name)
-        # Update Q_G_delta
         self.step_count += 1
       # Update state
       self.state[mode] = self.next_state[mode]
@@ -93,6 +92,25 @@ class MaxminDQN(VanillaDQN):
     self.reset_game(mode)
     if mode == 'Train':
       self.episode_count += 1
+
+  def run_eval_episode(self):
+    mode = 'Train'
+    # Reset environment
+    self.reset_game(mode)
+    while True:
+      self.action[mode] = self.get_action(mode)
+      # Take a step
+      self.next_state[mode], self.reward[mode], self.done[mode], _ = self.env[mode].step(self.action[mode])
+      self.next_state[mode] = self.state_normalizer(self.next_state[mode])
+      self.reward[mode] = self.reward_normalizer(self.reward[mode])
+      self.episode_step_count[mode] += 1
+      ep_end = self.done[mode] or self.episode_step_count[mode] >= self.max_episode_length
+      # Save experience
+      self.save_experience(ep_end)
+      # Update state
+      self.state[mode] = self.next_state[mode]
+      if self.done[mode] or self.episode_step_count[mode] >= self.max_episode_length:
+        break
 
   def save_experience(self, ep_end):
     mode = 'Train'
@@ -144,11 +162,11 @@ class MaxminDQN(VanillaDQN):
     if self.Q_G_delta > 0:
       self.nets_to_use = min(self.nets_to_use + 1, self.k)
 
-  def eval_thresholds_by_type(self, replay_buffer, n_per_episode, sampling_scheme):
+  def eval_thresholds_by_type(self, replay_buffer, n_per_episode, sampling_scheme, n_episodes):
     if sampling_scheme == 'uniform':
-      states, actions, returns, bs_states, bs_multiplier = replay_buffer.gather_returns_uniform(n_per_episode)
+      states, actions, returns, bs_states, bs_multiplier = replay_buffer.gather_returns_uniform(n_per_episode, n_episodes)
     elif sampling_scheme == 'episodes':
-      states, actions, returns, bs_states, bs_multiplier= replay_buffer.gather_returns(n_per_episode)
+      states, actions, returns, bs_states, bs_multiplier= replay_buffer.gather_returns(n_per_episode, n_episodes)
     else:
       raise Exception("No such sampling scheme")
     with torch.no_grad():
@@ -163,9 +181,11 @@ class MaxminDQN(VanillaDQN):
            f'LastReplay_{sampling_scheme}/Returns': (returns + tail_q).mean().__float__()}
     return res
   
-  def eval_thresholds(self, replay_buffer, n_per_episode):
-    res_uniform = self.eval_thresholds_by_type(replay_buffer, n_per_episode, 'uniform')
-    res_episodes = self.eval_thresholds_by_type(replay_buffer, n_per_episode, 'episodes')
+  def eval_thresholds(self, replay_buffer, n_per_episode, n_episodes=None):
+    if n_episodes is None:
+      n_episodes = len(self.replay.last_episodes)
+    res_uniform = self.eval_thresholds_by_type(replay_buffer, n_per_episode, 'uniform', n_episodes)
+    res_episodes = self.eval_thresholds_by_type(replay_buffer, n_per_episode, 'episodes', n_episodes)
     res = dict()
     res.update(res_uniform)
     res.update(res_episodes)

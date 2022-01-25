@@ -165,15 +165,25 @@ class BiasControlReplayBuffer(object):
         Entry = namedtuple('Entry', keys)
         return Entry(*list(data))
 
-    def gather_returns(self, n_per_episode):
+    def gather_returns(self, n_per_episode, n_episodes):
         selected_idx = []
-        for ep_lst in self.last_episodes:
+        if n_episodes < len(self.last_episodes):
+            indices = np.random.choice(range(len(self.last_episodes)), replace=False, size=n_episodes)
+            selected_episodes = [self.last_episodes[i] for i in indices]
+        else:
+            selected_episodes = self.last_episodes
+        for ep_lst in selected_episodes:
             selected_idx.append(np.random.choice(ep_lst, replace=True, size=n_per_episode))
         selected_idx = np.concatenate(selected_idx)
         return self.get_returns_by_idx(selected_idx)
 
-    def gather_returns_uniform(self, n_per_episode):
-        all_idx = np.concatenate(self.last_episodes)
+    def gather_returns_uniform(self, n_per_episode, n_episodes):
+        if n_episodes < len(self.last_episodes):
+            indices = np.random.choice(range(len(self.last_episodes)), replace=False, size=n_episodes)
+            selected_episodes = [self.last_episodes[i] for i in indices]
+        else:
+            selected_episodes = self.last_episodes
+        all_idx = np.concatenate(selected_episodes)
         selected_idx = np.random.choice(all_idx, replace=True, size=n_per_episode * len(self.last_episodes))
         return self.get_returns_by_idx(selected_idx)
 
