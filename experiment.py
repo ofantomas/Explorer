@@ -59,15 +59,11 @@ class Experiment(object):
     self.init_agent()
     checkpoints = glob.glob(f"{checkpoint_dir}/{checkpoint_prefix}*")
     checkpoints = sorted(checkpoints)
-    print("checkpoints: ", checkpoints)
     eval_timestamps = [int(checkpoint.split('/')[-1].split('_')[-1]) for checkpoint in checkpoints]
-    print("eval_timestamps: ", eval_timestamps)
     eval_num_nets = [metrics['nets/NumNets'][metrics['Total_timesteps'] == ts].values[0] for ts in eval_timestamps]
-    print("eval_num_nets: ", eval_num_nets)
     assert len(eval_num_nets) == len(checkpoints), "Length mismatch!"
     for checkpoint, num_nets, eval_timestamp in zip(checkpoints, eval_num_nets, eval_timestamps):
       metrics = self.eval_single_checkpoint(checkpoint, eval_timestamp, num_nets)
-      print(metrics)
       metrics = {'evals': metrics}
       metrics['checkpoint'] = checkpoint
       metrics['Timestamp'] = str(datetime.datetime.now())
