@@ -1,3 +1,17 @@
-export OMP_NUM_THREADS=1
-# git rev-parse --short HEAD
-parallel --eta --ungroup --jobs 120 python main.py --config_file ./configs/mujoco_rpg.json --config_idx {1} ::: $(seq 1 360)
+#!/bin/bash
+for i in {1..64}
+do
+   python main.py --config_file ./configs/minatar/AdaMMQL_fixed_minatar.json --config_idx $i
+done
+for i in {1..16}
+do
+   python main.py --config_file ./configs/minatar/AdaMMQL_adaptive_minatar.json --config_idx $i
+done
+for i in {1..16}
+do
+   python main.py --config_file ./configs/pixelcopter/AdaMMQL_fixed_pixelcopter.json --config_idx $i
+done
+for i in {1..4}
+do
+   python main.py --config_file ./configs/pixelcopter/AdaMMQL_adaptive_pixelcopter.json --config_idx $i
+done

@@ -1,9 +1,9 @@
 {
   "env": [
     {
-      "name": ["Breakout-MinAtar-v0"],
-      "max_episode_steps": [10000],
-      "input_type": ["pixel"]
+      "name": ["Pixelcopter-PLE-v0"],
+      "max_episode_steps": [500],
+      "input_type": ["feature"]
     }
   ],
   "agent": [
@@ -11,28 +11,27 @@
       "name": ["MaxminDQN"],
       "total_networks_num": [8],
       "update_networks_num": [2],
-      "networks_num": [-1],
-      "adaptive": [true]
+      "networks_num": [2, 4, 6, 8],
+      "adaptive": [false]
     }
   ],
-  "train_steps": [5e6],
+  "train_steps": [2e6],
   "test_per_episodes": [-1],
   "device": ["cuda"],
-  "feature_dim": [128],
-  "hidden_layers": [[]],
+  "hidden_layers": [[64,64]],
   "memory_type": ["Replay"],
   "memory_size": [1e5],
   "exploration_type": ["LinearEpsilonGreedy"],
-  "exploration_steps": [5e3],
-  "epsilon_steps": [1e5],
+  "exploration_steps": [1e3],
+  "epsilon_steps": [1e3],
   "epsilon_start": [1.0],
-  "epsilon_end": [0.1],
+  "epsilon_end": [0.01],
   "epsilon_decay": [0.999],
-  "loss": ["SmoothL1Loss"],
+  "loss": ["MSELoss"],
   "optimizer": [
     {
       "name": ["RMSprop"],
-      "kwargs": [{"lr": [3e-4], "alpha": [0.95], "centered": [true], "eps": [0.01]}]
+      "kwargs": [{"lr": [3e-4]}]
     }
   ],
   "eta": [
@@ -49,13 +48,15 @@
     }
   ],
   "batch_size": [32],
-  "display_interval": [1000],
+  "display_interval": [100],
+  "save_checkpoints": [true],
+  "checkpoint_freq": [100000],
   "rolling_score_window": [{"Train": [100], "Test": [10]}],
   "discount": [0.99],
   "seed": [10, 20, 30, 40],
   "show_tb": [true],
-  "gradient_clip": [-1],
-  "target_network_update_frequency": [1000],
+  "gradient_clip": [5],
+  "target_network_update_frequency": [200],
   "network_update_frequency": [1],
-  "generate_random_seed": [false]
+  "generate_random_seed": [true]
 }
