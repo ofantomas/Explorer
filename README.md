@@ -34,3 +34,5 @@ The models are tested for one episode after every `test_per_episodes` training e
 To evaluate the on policy bias we first need to run an experiment with `save_checkpoints` set to `true`. The checkpoints will be stored in `logs/exp_name/config_idx/`. To run the bias evaluation.
 
 ```python eval_bias_on_policy.py --logs_dir ./logs/exp_name/config_idx/ --store_N_episodes 300```
+
+For more info refer to [Explorer](https://github.com/qlan3/Explorer).
